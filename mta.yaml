@@ -1,0 +1,122 @@
+## Generated mta.yaml based on template version 0.4.0
+## appName = school-cap
+## language=nodejs; multiTenant=false
+## approuter=
+_schema-version: "3.1"
+ID: school-cap
+version: 1.0.0
+description: "A simple CAP project."
+parameters:
+  enable-parallel-deployments: true
+
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npm install --production
+        - npx -p @sap/cds-dk cds build --production
+
+modules:
+  # --------------------- SERVER MODULE ------------------------
+  - name: school-cap-srv
+    # ------------------------------------------------------------
+    type: nodejs
+    path: gen/srv
+    build-parameters:
+      ignore: ["package-lock.json", "node_modules/"]
+      parameters:
+        memory: 1024M
+        disk-quota: 1024M
+        buildpack: nodejs_buildpack
+
+    requires:
+      # Resources extracted from CAP configuration
+      - name: school-cap-db
+      - name: school-cap-uaa
+      - name: school-cap-dest-srv
+    provides:
+      - name: srv-api # required by consumers of CAP services (e.g. approuter)
+        properties:
+          srv-url: ${default-url}
+
+  # --------------------- App Router MODULE ------------------------
+  - name: school-cap-app-router
+    # ------------------------------------------------------------
+    type: nodejs
+    path: approuter
+    build-parameters:
+      ignore: ["package-lock.json", "node_modules/"]
+      parameters:
+        memory: 256M
+        disk-quota: 256M
+    requires:
+      # Resources extracted from CAP configuration
+      - name: school-cap-uaa
+      - name: school-cap-dest-srv
+      - name: srv-api
+        group: destinations
+        properties:
+          forwardAuthToken: true
+          strictSSL: false
+          name: school-cap-dest-srv
+          url: ~{srv-url}
+    deployed-after:
+      - school-cap-srv
+
+  # -------------------- SIDECAR MODULE ------------------------
+  - name: school-cap-db-deployer
+    # ------------------------------------------------------------
+    type: hdb
+    path: gen/db
+    parameters:
+      buildpack: nodejs_buildpack
+      memory: 256M
+      disk-quota: 512M
+    requires:
+      # 'hana' and 'xsuaa' resources extracted from CAP configuration
+      - name: school-cap-db
+      - name: school-cap-uaa
+
+resources:
+  # services extracted from CAP configuration
+  # 'service-plan' can be configured via 'cds.requires.<name>.vcap.plan'
+  # ------------------------------------------------------------
+  - name: school-cap-db
+    # ------------------------------------------------------------
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana # or 'hanatrial' on trial landscapes
+      service-plan: hdi-shared
+      shared: true
+      config:
+        database_id: eb6d1f4b-0d9c-456c-b401-73af61111a5b
+        # eb6d1f4b-0d9c-456c-b401-73af61111a5b IPL Incitec
+        # bf7cc04a-952f-4f22-87b8-ef294cf11cd2  #  TMCA Database ID
+
+    properties:
+      hdi-service-name: ${service-name}
+
+  # ------------------------------------------------------------
+  - name: school-cap-uaa
+    # ------------------------------------------------------------
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+      config:
+        #  xsappname: -${space}    #  name + space dependency
+        tenant-mode: dedicated
+        ##  path to xs-security.json to add roles and scopes
+        # path: ./xs-security.json
+        ## or inline definition
+        # scopes:
+        # - name: $XSAPPNAME...
+
+  # ------------------------------------------------------------
+  - name: school-cap-dest-srv
+    # ------------------------------------------------------------
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: destination
+      service-plan: lite

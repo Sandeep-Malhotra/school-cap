@@ -1,0 +1,47 @@
+{
+   "name": "school-cap",
+   "version": "1.0.0",
+   "description": "A simple CAP project.",
+   "repository": "<Add your repository here>",
+   "license": "UNLICENSED",
+   "private": true,
+   "dependencies": {
+      "@sap/audit-logging": "^3.1.0",
+      "@sap/hana-client": "^2.5.86",
+      "@sap/xsenv": "^3.0.0",
+      "@sap/xssec": "^2.2.5",
+      "@sap/cds": "^4",
+      "express": "^4",
+      "passport": "^0.4.1"
+   },
+   "devDependencies": {
+      "@sap/hdi-deploy": "^3.11.11",
+      "@sap/cds-dk": "^1.4.4",
+      "sqlite3": "^5"
+   },
+   "scripts": {
+      "start": "npx cds run"
+   },
+   "cds": {
+      "hana": {
+         "deploy-format": "hdbtable",
+         "syntax": "hdi"
+      },
+      "requires": {
+         "db": {
+            "kind": "sql"
+         },
+         "uaa": {
+            "kind": "xsuaa"
+         }
+      },
+      "odata": {
+         "version": "v4"
+      },
+      "auth": {
+         "passport": {
+            "strategy": "JWT"
+         }
+      }
+   }
+}
